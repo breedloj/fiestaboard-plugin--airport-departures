@@ -56,7 +56,7 @@
         "maximum": 21600
       }
     },
-    "required": ["api_key", "airport_iata"]
+    "required": ["airport_iata"]
   },
   "env_vars": [
     {
@@ -78,6 +78,8 @@
       "compact_time": {"description": "Best known departure time in compact 24-hour form", "type": "string", "max_length": 4, "group": "primary", "example": "1930"},
       "status_label": {"description": "Human-readable flight status", "type": "string", "max_length": 15, "group": "primary", "example": "ON TIME"},
       "status_code": {"description": "Compact status", "type": "string", "max_length": 5, "group": "primary", "example": "DLY"},
+      "status_color": {"description": "Status color tile", "type": "string", "max_length": 4, "group": "primary", "example": "{64}"},
+      "is_delayed": {"description": "Whether the next departure is delayed", "type": "boolean", "max_length": 3, "group": "primary", "example": "Yes"},
       "terminal": {"description": "Departure terminal", "type": "string", "max_length": 5, "group": "primary", "example": "N"},
       "gate": {"description": "Departure gate", "type": "string", "max_length": 6, "group": "primary", "example": "N12"},
       "delay_minutes": {"description": "Departure delay in minutes", "type": "number", "max_length": 4, "group": "primary", "example": "15"},

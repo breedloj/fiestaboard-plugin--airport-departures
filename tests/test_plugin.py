@@ -55,6 +55,31 @@ def test_airlabs_normalization():
     assert rows[0]["compact_time"] == "1930"
 
 
+def test_fiestaboard_loader_accepts_standalone_repo(tmp_path):
+    from src.plugins.loader import PluginLoader
+
+    (tmp_path / "airport_departures").symlink_to(ROOT, target_is_directory=True)
+    loader = PluginLoader(plugins_dir=tmp_path, external_dirs=[])
+    plugin = loader.load_plugin("airport_departures")
+    assert plugin is not None, loader._load_errors.get("airport_departures")
+
+
+def test_airlabs_http_error_does_not_expose_api_key():
+    provider = load_provider_module()
+    http_error = provider.requests.HTTPError(
+        "429 for https://airlabs.co/api/v9/schedules?api_key=very-secret",
+        response=Mock(status_code=429),
+    )
+    with patch.object(provider.requests, "get", side_effect=http_error):
+        try:
+            provider.AirLabsProvider("very-secret").fetch_departures("SEA", 10)
+        except provider.ProviderError as exc:
+            assert str(exc) == "AirLabs request failed (HTTP 429)"
+            assert "very-secret" not in str(exc)
+        else:
+            raise AssertionError("Expected ProviderError")
+
+
 def test_delayed_departure_uses_compact_status():
     module = load_plugin_module()
     plugin = module.Plugin(manifest())
@@ -97,7 +122,14 @@ def test_single_departure_shows_gate_detail():
         plugin, "_now", return_value=datetime(2026, 7, 13, 19, tzinfo=ZoneInfo("UTC"))
     ):
         result = plugin.fetch_data()
-    assert result.data["line3"] == "GATE N12 ON TIM"
+    assert result.data["line3"] == "N12 ON TIME"
+
+
+def test_boarding_row_with_six_character_flight_fits_note():
+    module = load_plugin_module()
+    item = normalized("AB1234", "LAX", "2026-07-13T20:00:00+00:00", "BRD", "BOARDING")
+    assert module._compact_line(item, 15) == "AB1234 LAX BRD"
+    assert len(module._compact_line(item, 15)) <= 15
 
 
 def test_validation_requires_key_and_iata():
@@ -105,6 +137,10 @@ def test_validation_requires_key_and_iata():
     plugin = module.Plugin(manifest())
     errors = plugin.validate_config({"airport_iata": "SE", "timezone": "UTC"})
     assert len(errors) == 2
+
+
+def test_manifest_allows_environment_api_key():
+    assert "api_key" not in manifest()["settings_schema"]["required"]
 
 
 def airlabs_departure(flight, destination, dep_time, delayed=0):

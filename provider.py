@@ -40,8 +40,12 @@ class AirLabsProvider(DepartureProvider):
             response = requests.get(AIRLABS_SCHEDULES_URL, params=params, timeout=REQUEST_TIMEOUT)
             response.raise_for_status()
             payload = response.json()
-        except (requests.RequestException, ValueError) as exc:
-            raise ProviderError(f"AirLabs request failed: {exc}") from exc
+        except requests.RequestException as exc:
+            status = getattr(getattr(exc, "response", None), "status_code", None)
+            detail = f" (HTTP {status})" if status else ""
+            raise ProviderError(f"AirLabs request failed{detail}") from exc
+        except ValueError as exc:
+            raise ProviderError("AirLabs returned invalid JSON") from exc
 
         if isinstance(payload, dict) and payload.get("error"):
             error = payload["error"]
@@ -100,7 +104,7 @@ def _status(status: str, delayed: int) -> tuple[str, str]:
     if status in {"active", "departed", "en-route", "en_route", "landed"}:
         return "DEPT", "DEPARTED"
     if status in {"boarding"}:
-        return "BOARD", "BOARDING"
+        return "BRD", "BOARDING"
     if status == "delayed" or delayed > 0:
         return "DLY", f"DELAY {delayed}M" if delayed else "DELAYED"
     return "ON", "ON TIME"

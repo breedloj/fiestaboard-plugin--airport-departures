@@ -167,7 +167,7 @@ class AirportDeparturesPlugin(PluginBase):
 def _compact_line(item: dict[str, Any], width: int) -> str:
     flight = _fit(item.get("flight") or "FLIGHT", 6)
     destination = _fit(item.get("destination") or "---", 3)
-    if item.get("status_code") in {"DLY", "CNCL", "BOARD", "DEPT"}:
+    if item.get("status_code") in {"DLY", "CNCL", "BRD", "DEPT"}:
         suffix = str(item.get("status_code"))
     else:
         suffix = str(item.get("compact_time") or item.get("display_time") or "----")
@@ -177,7 +177,9 @@ def _compact_line(item: dict[str, Any], width: int) -> str:
 def _detail_line(item: dict[str, Any], width: int) -> str:
     parts: list[str] = []
     if item.get("gate"):
-        parts.append(f"GATE {item['gate']}")
+        parts.append(str(item["gate"]))
+    elif item.get("terminal"):
+        parts.append(f"TERM {item['terminal']}")
     parts.append(str(item.get("status_label") or "ON TIME"))
     return _fit(" ".join(parts), width)
 
