@@ -1,7 +1,7 @@
 {
   "id": "airport_departures",
   "name": "Airport Departures",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Scheduled airline departure times, destinations, delays, gates, and statuses.",
   "author": "Jonathan Breedlove",
   "icon": "plane-takeoff",

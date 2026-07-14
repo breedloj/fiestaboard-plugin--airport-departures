@@ -76,7 +76,7 @@ def test_airlabs_derives_numbers_when_optional_fields_are_missing():
     assert normalized_row["codeshare_number"] == "2248"
 
 
-def test_codeshare_and_operator_are_one_departure():
+def test_primary_marketing_flight_wins_over_partner_and_operator_aliases():
     module = load_plugin_module()
     marketing = normalized("AS2248", "SFO", "2026-07-13T21:44:00-07:00", "ON", "ON TIME")
     marketing.update(
@@ -86,7 +86,13 @@ def test_codeshare_and_operator_are_one_departure():
     )
     operator = normalized("QX2248", "SFO", "2026-07-13T21:44:00-07:00", "ON", "ON TIME")
     operator.update(flight_number="2248", codeshare_flight="", codeshare_number="")
-    assert module.Plugin(manifest())._deduplicate([operator, marketing]) == [marketing]
+    partner = normalized("FJ5869", "SFO", "2026-07-13T21:44:00-07:00", "ON", "ON TIME")
+    partner.update(
+        flight_number="5869",
+        codeshare_flight="AS2248",
+        codeshare_number="2248",
+    )
+    assert module.Plugin(manifest())._deduplicate([partner, operator, marketing]) == [marketing]
 
 
 def test_distinct_simultaneous_departures_are_not_combined():

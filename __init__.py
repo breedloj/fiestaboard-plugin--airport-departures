@@ -126,9 +126,7 @@ class AirportDeparturesPlugin(PluginBase):
             if key in positions:
                 existing_index = positions[key]
                 existing = unique[existing_index]
-                # The row carrying a codeshare reference is normally the
-                # customer-facing marketing flight (for example AS over QX).
-                if item.get("codeshare_flight") and not existing.get("codeshare_flight"):
+                if _listing_score(item) > _listing_score(existing):
                     unique[existing_index] = item
                 continue
             positions[key] = len(unique)
@@ -181,6 +179,17 @@ def _compact_line(item: dict[str, Any], width: int) -> str:
     destination = _fit(item.get("destination") or "---", 3)
     suffix = str(item.get("compact_time") or item.get("display_time") or "----")
     return _fit(f"{flight} {destination} {suffix}", width)
+
+
+def _listing_score(item: dict[str, Any]) -> int:
+    """Prefer the primary marketing flight over operator and partner aliases."""
+    flight_number = str(item.get("flight_number") or "")
+    codeshare_number = str(item.get("codeshare_number") or "")
+    if item.get("codeshare_flight") and flight_number == codeshare_number:
+        return 3
+    if not item.get("codeshare_flight"):
+        return 2
+    return 1
 
 
 def _fit(value: Any, width: int) -> str:
