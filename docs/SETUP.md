@@ -30,6 +30,12 @@ Structured departures are available by fixed index:
 
 Additional fields include `display_time`, `compact_time`, `scheduled_time`, `estimated_time`, `terminal`, `gate`, `delay_minutes`, and `status_color`.
 
+To select this page only when a departure is within two hours, use this variable-collection rule:
+
+```text
+AND(airport_departures.departure_count > 0, airport_departures.minutes_until_departure >= 0, airport_departures.minutes_until_departure <= 120)
+```
+
 ## API Limits
 
 AirLabs controls request allowances. FiestaBoard caches this plugin according to the configured refresh interval. At the default 3,600 seconds, the theoretical maximum is 24 requests per day.

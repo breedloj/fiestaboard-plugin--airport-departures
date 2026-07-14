@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import os
 from datetime import datetime, timedelta
 from typing import Any
@@ -63,6 +64,8 @@ class AirportDeparturesPlugin(PluginBase):
         departures = self._deduplicate(departures)
         departures.sort(key=lambda item: item.get("sort_time", ""))
         departures = departures[:max_departures]
+        for item in departures:
+            item["minutes_until_departure"] = _minutes_until_departure(item, now)
 
         if not departures:
             data = self._empty_data(airport)
@@ -165,6 +168,7 @@ class AirportDeparturesPlugin(PluginBase):
             "destination": "",
             "departure_count": 0,
             "has_delays": False,
+            "minutes_until_departure": -1,
             "departures": [],
             "header": _fit(f"{airport} DEPARTURES", 15),
             "line1": _fit(f"{airport} DEPARTURES", 15),
@@ -190,6 +194,19 @@ def _listing_score(item: dict[str, Any]) -> int:
     if not item.get("codeshare_flight"):
         return 2
     return 1
+
+
+def _minutes_until_departure(item: dict[str, Any], now: datetime) -> int:
+    raw = str(item.get("sort_time") or "")
+    if not raw:
+        return -1
+    try:
+        departure = datetime.fromisoformat(raw)
+    except ValueError:
+        return -1
+    if departure.tzinfo is None:
+        departure = departure.replace(tzinfo=now.tzinfo)
+    return max(-1, math.ceil((departure - now).total_seconds() / 60))
 
 
 def _fit(value: Any, width: int) -> str:

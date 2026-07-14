@@ -155,6 +155,8 @@ def test_delayed_departure_keeps_updated_time_on_note():
     assert result.available
     assert result.data["line1"] == "SEA DEPARTURES"
     assert result.data["line3"] == "DL456 SFO 1930"
+    assert result.data["minutes_until_departure"] == 30
+    assert result.data["departures"][1]["minutes_until_departure"] == 60
     assert result.data["has_delays"]
     assert all(len(line) <= 15 for line in result.formatted_lines[:3])
 
@@ -189,6 +191,11 @@ def test_validation_requires_key_and_iata():
 
 def test_manifest_allows_environment_api_key():
     assert "api_key" not in manifest()["settings_schema"]["required"]
+
+
+def test_missing_departure_time_uses_unavailable_sentinel():
+    module = load_plugin_module()
+    assert module._minutes_until_departure({}, datetime(2026, 7, 13, tzinfo=ZoneInfo("UTC"))) == -1
 
 
 def test_cancelled_departure_is_not_relevant():

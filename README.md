@@ -30,6 +30,8 @@ DL456 SFO 2015
 
 Note rows use four-digit 24-hour times so a full flight number, destination, and time fit exactly on 15 tiles. Delays use the latest estimated time. The structured `display_time`, `status_code`, and `status_label` fields remain available for custom templates.
 
+Variable-mode collections can use `airport_departures.minutes_until_departure` to surface the page only when the next flight is close, rather than when AirLabs happens to add a flight to its look-ahead window.
+
 The one-hour default refresh uses no more than 744 scheduled requests during a 31-day month. Lower it only after checking the allowance associated with your API key.
 
 See [docs/SETUP.md](docs/SETUP.md) for setup details.
