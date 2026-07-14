@@ -1,0 +1,143 @@
+{
+  "id": "airport_departures",
+  "name": "Airport Departures",
+  "version": "1.0.0",
+  "description": "Real airport departure times, destinations, delays, gates, and statuses.",
+  "author": "Jonathan Breedlove",
+  "icon": "plane-takeoff",
+  "category": "transit",
+  "documentation": "README.md",
+  "min_refresh_seconds": 300,
+  "settings_schema": {
+    "type": "object",
+    "properties": {
+      "api_key": {
+        "type": "string",
+        "title": "AirLabs API Key",
+        "description": "Create a key at airlabs.co.",
+        "ui:widget": "password"
+      },
+      "airport_iata": {
+        "type": "string",
+        "title": "Departure Airport",
+        "description": "Three-letter IATA code, such as SEA.",
+        "default": "SEA",
+        "minLength": 3,
+        "maxLength": 3
+      },
+      "timezone": {
+        "type": "string",
+        "title": "Airport Timezone",
+        "description": "IANA timezone used to decide which departures are still relevant.",
+        "default": "America/Los_Angeles"
+      },
+      "max_departures": {
+        "type": "integer",
+        "title": "Maximum Departures",
+        "description": "The Note default shows the first two; templates may use the rest.",
+        "default": 5,
+        "minimum": 1,
+        "maximum": 10
+      },
+      "recent_departure_minutes": {
+        "type": "integer",
+        "title": "Keep Recent Departures (minutes)",
+        "description": "Retain recently delayed or departed flights briefly.",
+        "default": 45,
+        "minimum": 0,
+        "maximum": 180
+      },
+      "refresh_seconds": {
+        "type": "integer",
+        "title": "Refresh Interval (seconds)",
+        "description": "The one-hour default stays within roughly 744 requests per 31-day month.",
+        "default": 3600,
+        "minimum": 300,
+        "maximum": 21600
+      }
+    },
+    "required": ["api_key", "airport_iata"]
+  },
+  "env_vars": [
+    {
+      "name": "AIRLABS_API_KEY",
+      "required": false,
+      "description": "AirLabs API key; the UI value takes precedence."
+    }
+  ],
+  "variables": {
+    "groups": {
+      "primary": {"label": "Next Departure"},
+      "display": {"label": "Ready-to-Display"}
+    },
+    "simple": {
+      "airport": {"description": "Configured departure airport", "type": "string", "max_length": 3, "group": "primary", "example": "SEA"},
+      "flight": {"description": "Flight number", "type": "string", "max_length": 7, "group": "primary", "example": "AS123"},
+      "destination": {"description": "Destination IATA code", "type": "string", "max_length": 3, "group": "primary", "example": "LAX"},
+      "display_time": {"description": "Best known departure time", "type": "string", "max_length": 8, "group": "primary", "example": "7:30 PM"},
+      "compact_time": {"description": "Best known departure time in compact 24-hour form", "type": "string", "max_length": 4, "group": "primary", "example": "1930"},
+      "status_label": {"description": "Human-readable flight status", "type": "string", "max_length": 15, "group": "primary", "example": "ON TIME"},
+      "status_code": {"description": "Compact status", "type": "string", "max_length": 5, "group": "primary", "example": "DLY"},
+      "terminal": {"description": "Departure terminal", "type": "string", "max_length": 5, "group": "primary", "example": "N"},
+      "gate": {"description": "Departure gate", "type": "string", "max_length": 6, "group": "primary", "example": "N12"},
+      "delay_minutes": {"description": "Departure delay in minutes", "type": "number", "max_length": 4, "group": "primary", "example": "15"},
+      "departure_count": {"description": "Relevant departures returned", "type": "number", "max_length": 2, "group": "primary", "example": "5"},
+      "has_delays": {"description": "Whether any returned flight is delayed", "type": "boolean", "max_length": 3, "group": "primary", "example": "Yes"},
+      "line1": {"description": "Note-ready airport header", "type": "string", "max_length": 15, "group": "display", "example": "SEA DEPARTURES"},
+      "line2": {"description": "First Note-ready departure", "type": "string", "max_length": 15, "group": "display", "example": "AS123 LAX 7:30"},
+      "line3": {"description": "Second departure or primary details", "type": "string", "max_length": 15, "group": "display", "example": "DL456 SFO DLY"},
+      "formatted": {"description": "Compact primary departure", "type": "string", "max_length": 22, "group": "display", "example": "AS123 LAX 7:30 PM"}
+    },
+    "arrays": {
+      "departures": {
+        "label_field": "flight",
+        "item_fields": ["flight", "airline", "destination", "display_time", "compact_time", "scheduled_time", "estimated_time", "terminal", "gate", "status", "status_code", "status_label", "delay_minutes", "status_color"]
+      }
+    }
+  },
+  "max_lengths": {
+    "departures.*.flight": 7,
+    "departures.*.destination": 3,
+    "departures.*.display_time": 8,
+    "departures.*.compact_time": 4,
+    "departures.*.status_code": 5,
+    "departures.*.status_label": 15,
+    "departures.*.terminal": 5,
+    "departures.*.gate": 6
+  },
+  "fiestaboard_version": ">=2.10.0",
+  "demo": {
+    "flagship": {
+      "name": "Airport Departures",
+      "template": [
+        "{{airport_departures.airport}} DEPARTURES",
+        "{{airport_departures.departures.0.flight}} {{airport_departures.departures.0.destination}} {{airport_departures.departures.0.compact_time}}",
+        "{{airport_departures.departures.1.flight}} {{airport_departures.departures.1.destination}} {{airport_departures.departures.1.compact_time}}",
+        "{{airport_departures.departures.2.flight}} {{airport_departures.departures.2.destination}} {{airport_departures.departures.2.compact_time}}",
+        "",
+        "{{airport_departures.departure_count}} DEPARTURES"
+      ],
+      "line_metadata": [
+        {"alignment": "center", "wrap": false},
+        {"alignment": "left", "wrap": false},
+        {"alignment": "left", "wrap": false},
+        {"alignment": "left", "wrap": false},
+        {"alignment": "left", "wrap": false},
+        {"alignment": "center", "wrap": false}
+      ]
+    },
+    "note": {
+      "name": "Airport Departures for Note",
+      "template": [
+        "{{airport_departures.line1}}",
+        "{{airport_departures.line2}}",
+        "{{airport_departures.line3}}"
+      ],
+      "line_metadata": [
+        {"alignment": "center", "wrap": false},
+        {"alignment": "left", "wrap": false},
+        {"alignment": "left", "wrap": false}
+      ]
+    }
+  }
+}

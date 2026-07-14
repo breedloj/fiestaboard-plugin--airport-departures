@@ -1,0 +1,35 @@
+# Airport Departures for FiestaBoard
+
+An installable FiestaBoard plugin for real airport departure boards. Unlike nearby-aircraft plugins, it uses an airport schedule feed and exposes flight number, destination, time, delay, terminal, gate, and operational status.
+
+## Data Provider
+
+Version 1 uses the [AirLabs Schedules API](https://airlabs.co/docs/schedules). AirLabs currently returns live schedule data up to roughly ten hours ahead and offers a free key for development and low-volume personal use.
+
+The provider adapter is isolated in `provider.py`, so another vendor can be added without changing the FiestaBoard variables or templates.
+
+## Install
+
+After this directory is pushed to a public GitHub repository, install its HTTPS URL from FiestaBoard's Integrations page. Keep the repository name `fiestaboard-plugin--airport-departures` if it may later be submitted to the official registry.
+
+## Note Template
+
+```text
+{{airport_departures.line1}}
+{{airport_departures.line2}}
+{{airport_departures.line3}}
+```
+
+Example:
+
+```text
+SEA DEPARTURES
+AS123 LAX 1930
+DL456 SFO DLY
+```
+
+Note rows use four-digit 24-hour times so a full flight number, destination, and time fit exactly on 15 tiles. The structured `display_time` field remains available for 12-hour templates.
+
+The one-hour default refresh uses no more than 744 scheduled requests during a 31-day month. Lower it only after checking the allowance associated with your API key.
+
+See [docs/SETUP.md](docs/SETUP.md) for setup details.
