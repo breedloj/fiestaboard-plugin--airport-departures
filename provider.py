@@ -33,7 +33,7 @@ class AirLabsProvider(DepartureProvider):
             "limit": max(1, min(50, limit)),
             "_fields": (
                 "flight_iata,flight_number,airline_iata,dep_iata,dep_time,dep_estimated,"
-                "dep_actual,dep_terminal,dep_gate,arr_iata,status,delayed"
+                "dep_actual,dep_terminal,dep_gate,arr_iata,status,dep_delayed"
             ),
         }
         try:
@@ -59,12 +59,12 @@ class AirLabsProvider(DepartureProvider):
 
 
 def _normalize_airlabs(row: dict[str, Any]) -> dict[str, Any] | None:
-    flight = str(
-        row.get("flight_iata")
-        or f"{row.get('airline_iata', '')}{row.get('flight_number', '')}"
-    ).strip().upper()
+    airline = str(row.get("airline_iata") or "").strip().upper()
+    flight = str(row.get("flight_iata") or "").strip().upper()
     destination = str(row.get("arr_iata") or "").strip().upper()
-    if not flight or not destination:
+    # Published IATA identifiers distinguish scheduled airline service from
+    # private, positioning, and other general-aviation movements.
+    if not airline or not flight or not destination:
         return None
 
     scheduled = str(row.get("dep_time") or "").strip()
@@ -73,13 +73,13 @@ def _normalize_airlabs(row: dict[str, Any]) -> dict[str, Any] | None:
     effective = actual or estimated or scheduled
     status = str(row.get("status") or "scheduled").strip().lower()
     try:
-        delayed = max(0, int(float(row.get("delayed") or 0)))
+        delayed = max(0, int(float(row.get("dep_delayed") or 0)))
     except (TypeError, ValueError):
         delayed = 0
     status_code, status_label = _status(status, delayed)
     return {
         "flight": flight,
-        "airline": str(row.get("airline_iata") or "").upper(),
+        "airline": airline,
         "destination": destination,
         "scheduled_time": scheduled,
         "estimated_time": estimated,

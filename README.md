@@ -1,6 +1,6 @@
 # Airport Departures for FiestaBoard
 
-An installable FiestaBoard plugin for real airport departure boards. Unlike nearby-aircraft plugins, it uses an airport schedule feed and exposes flight number, destination, time, delay, terminal, gate, and operational status.
+An installable FiestaBoard plugin for scheduled airline departure boards. Unlike nearby-aircraft plugins, it uses an airport schedule feed and exposes flight number, destination, time, delay, terminal, gate, and operational status. Rows without published airline and flight IATA identifiers are excluded.
 
 ## Data Provider
 
@@ -25,10 +25,10 @@ Example:
 ```text
 SEA DEPARTURES
 AS123 LAX 1930
-DL456 SFO DLY
+DL456 SFO 2015
 ```
 
-Note rows use four-digit 24-hour times so a full flight number, destination, and time fit exactly on 15 tiles. The structured `display_time` field remains available for 12-hour templates.
+Note rows use four-digit 24-hour times so a full flight number, destination, and time fit exactly on 15 tiles. Delays use the latest estimated time. The structured `display_time`, `status_code`, and `status_label` fields remain available for custom templates.
 
 The one-hour default refresh uses no more than 744 scheduled requests during a 31-day month. Lower it only after checking the allowance associated with your API key.
 

@@ -55,6 +55,17 @@ def test_airlabs_normalization():
     assert rows[0]["compact_time"] == "1930"
 
 
+def test_airlabs_excludes_non_airline_movements():
+    provider = load_provider_module()
+    airline = airlabs_departure("AS123", "LAX", "2026-07-13 19:30")
+    no_airline = {**airline, "flight_iata": "N123AB", "airline_iata": ""}
+    no_flight = {**airline, "flight_iata": ""}
+    payload = {"response": [no_airline, no_flight, airline]}
+    with patch.object(provider.requests, "get", return_value=response(payload)):
+        rows = provider.AirLabsProvider("secret").fetch_departures("PAE", 10)
+    assert [row["flight"] for row in rows] == ["AS123"]
+
+
 def test_fiestaboard_loader_accepts_standalone_repo(tmp_path):
     from src.plugins.loader import PluginLoader
 
@@ -80,7 +91,7 @@ def test_airlabs_http_error_does_not_expose_api_key():
             raise AssertionError("Expected ProviderError")
 
 
-def test_delayed_departure_uses_compact_status():
+def test_delayed_departure_keeps_updated_time_on_note():
     module = load_plugin_module()
     plugin = module.Plugin(manifest())
     plugin.config = {
@@ -105,30 +116,29 @@ def test_delayed_departure_uses_compact_status():
             result = plugin.fetch_data()
     assert result.available
     assert result.data["line1"] == "SEA DEPARTURES"
-    assert result.data["line3"] == "DL456 SFO DLY"
+    assert result.data["line3"] == "DL456 SFO 1930"
     assert result.data["has_delays"]
     assert all(len(line) <= 15 for line in result.formatted_lines[:3])
 
 
-def test_single_departure_shows_gate_detail():
+def test_single_departure_leaves_second_slot_empty():
     module = load_plugin_module()
     plugin = module.Plugin(manifest())
     plugin.config = {"api_key": "secret", "airport_iata": "SEA", "timezone": "UTC"}
     item = normalized("AS123", "LAX", "2026-07-13T20:00:00+00:00", "ON", "ON TIME")
-    item["gate"] = "N12"
     provider = Mock()
     provider.fetch_departures.return_value = [item]
     with patch.object(plugin, "_provider", return_value=provider), patch.object(
         plugin, "_now", return_value=datetime(2026, 7, 13, 19, tzinfo=ZoneInfo("UTC"))
     ):
         result = plugin.fetch_data()
-    assert result.data["line3"] == "N12 ON TIME"
+    assert result.data["line3"] == ""
 
 
 def test_boarding_row_with_six_character_flight_fits_note():
     module = load_plugin_module()
     item = normalized("AB1234", "LAX", "2026-07-13T20:00:00+00:00", "BRD", "BOARDING")
-    assert module._compact_line(item, 15) == "AB1234 LAX BRD"
+    assert module._compact_line(item, 15) == "AB1234 LAX 1930"
     assert len(module._compact_line(item, 15)) <= 15
 
 
@@ -143,6 +153,14 @@ def test_manifest_allows_environment_api_key():
     assert "api_key" not in manifest()["settings_schema"]["required"]
 
 
+def test_cancelled_departure_is_not_relevant():
+    module = load_plugin_module()
+    item = normalized("AS123", "LAX", "2026-07-13T20:00:00+00:00", "CNCL", "CANCELLED")
+    item["status"] = "cancelled"
+    now = datetime(2026, 7, 13, 19, tzinfo=ZoneInfo("UTC"))
+    assert not module.Plugin(manifest())._is_relevant(item, now, 0)
+
+
 def airlabs_departure(flight, destination, dep_time, delayed=0):
     return {
         "flight_iata": flight,
@@ -151,7 +169,7 @@ def airlabs_departure(flight, destination, dep_time, delayed=0):
         "dep_time": dep_time,
         "arr_iata": destination,
         "status": "scheduled",
-        "delayed": delayed,
+        "dep_delayed": delayed,
     }
 
 

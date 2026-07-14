@@ -3,9 +3,10 @@
 1. Create an AirLabs account and API key at <https://airlabs.co>.
 2. Install this plugin from its public GitHub HTTPS URL.
 3. Open **Integrations** and enable **Airport Departures**.
-4. Enter the API key and a three-letter departure airport such as `SEA`.
+4. Enter the API key and a three-letter departure airport such as `PAE`.
 5. Set the airport's IANA timezone, such as `America/Los_Angeles`.
-6. Start with the one-hour refresh interval so a free allowance is not consumed accidentally.
+6. Set **Maximum Departures** to `2` and **Keep Recent Departures** to `0`.
+7. Start with the one-hour refresh interval so a free allowance is not consumed accidentally.
 
 ## Recommended Note Page
 
@@ -15,7 +16,7 @@
 {{airport_departures.line3}}
 ```
 
-The first row identifies the airport. The next two rows show the earliest relevant departures. On-time flights show their best known departure time; delayed, cancelled, boarding, or departed flights show a compact status instead.
+The first row identifies the airport. The next two rows show the earliest upcoming scheduled airline departures and their best known times. Cancelled flights and rows without published airline and flight IATA identifiers are excluded.
 
 ## Advanced Templates
 

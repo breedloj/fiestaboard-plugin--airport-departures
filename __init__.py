@@ -94,6 +94,8 @@ class AirportDeparturesPlugin(PluginBase):
 
     @staticmethod
     def _is_relevant(item: dict[str, Any], now: datetime, recent_minutes: int) -> bool:
+        if str(item.get("status", "")).lower() in {"cancelled", "canceled"}:
+            return False
         raw = str(item.get("sort_time", ""))
         if not raw:
             return True
@@ -124,8 +126,6 @@ class AirportDeparturesPlugin(PluginBase):
     @staticmethod
     def _display_fields(airport: str, departures: list[dict[str, Any]]) -> dict[str, str]:
         lines = [_compact_line(item, 15) for item in departures[:2]]
-        if len(lines) == 1:
-            lines.append(_detail_line(departures[0], 15))
         while len(lines) < 2:
             lines.append("")
         return {
@@ -167,21 +167,8 @@ class AirportDeparturesPlugin(PluginBase):
 def _compact_line(item: dict[str, Any], width: int) -> str:
     flight = _fit(item.get("flight") or "FLIGHT", 6)
     destination = _fit(item.get("destination") or "---", 3)
-    if item.get("status_code") in {"DLY", "CNCL", "BRD", "DEPT"}:
-        suffix = str(item.get("status_code"))
-    else:
-        suffix = str(item.get("compact_time") or item.get("display_time") or "----")
+    suffix = str(item.get("compact_time") or item.get("display_time") or "----")
     return _fit(f"{flight} {destination} {suffix}", width)
-
-
-def _detail_line(item: dict[str, Any], width: int) -> str:
-    parts: list[str] = []
-    if item.get("gate"):
-        parts.append(str(item["gate"]))
-    elif item.get("terminal"):
-        parts.append(f"TERM {item['terminal']}")
-    parts.append(str(item.get("status_label") or "ON TIME"))
-    return _fit(" ".join(parts), width)
 
 
 def _fit(value: Any, width: int) -> str:
