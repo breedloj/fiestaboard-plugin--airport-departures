@@ -1,7 +1,7 @@
 {
   "id": "airport_departures",
   "name": "Airport Departures",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Scheduled airline departure times, destinations, delays, gates, and statuses.",
   "author": "Jonathan Breedlove",
   "icon": "plane-takeoff",
@@ -93,12 +93,14 @@
     "arrays": {
       "departures": {
         "label_field": "flight",
-        "item_fields": ["flight", "airline", "destination", "display_time", "compact_time", "scheduled_time", "estimated_time", "terminal", "gate", "status", "status_code", "status_label", "delay_minutes", "status_color"]
+        "item_fields": ["flight", "flight_number", "airline", "codeshare_flight", "destination", "display_time", "compact_time", "scheduled_time", "estimated_time", "terminal", "gate", "status", "status_code", "status_label", "delay_minutes", "status_color"]
       }
     }
   },
   "max_lengths": {
     "departures.*.flight": 7,
+    "departures.*.flight_number": 5,
+    "departures.*.codeshare_flight": 7,
     "departures.*.destination": 3,
     "departures.*.display_time": 8,
     "departures.*.compact_time": 4,

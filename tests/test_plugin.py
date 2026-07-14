@@ -66,6 +66,38 @@ def test_airlabs_excludes_non_airline_movements():
     assert [row["flight"] for row in rows] == ["AS123"]
 
 
+def test_airlabs_derives_numbers_when_optional_fields_are_missing():
+    provider = load_provider_module()
+    row = airlabs_departure("AS2248", "SFO", "2026-07-13 21:44")
+    row.pop("flight_number")
+    row.update(cs_flight_iata="QX2248")
+    normalized_row = provider._normalize_airlabs(row)
+    assert normalized_row["flight_number"] == "2248"
+    assert normalized_row["codeshare_number"] == "2248"
+
+
+def test_codeshare_and_operator_are_one_departure():
+    module = load_plugin_module()
+    marketing = normalized("AS2248", "SFO", "2026-07-13T21:44:00-07:00", "ON", "ON TIME")
+    marketing.update(
+        flight_number="2248",
+        codeshare_flight="QX2248",
+        codeshare_number="2248",
+    )
+    operator = normalized("QX2248", "SFO", "2026-07-13T21:44:00-07:00", "ON", "ON TIME")
+    operator.update(flight_number="2248", codeshare_flight="", codeshare_number="")
+    assert module.Plugin(manifest())._deduplicate([operator, marketing]) == [marketing]
+
+
+def test_distinct_simultaneous_departures_are_not_combined():
+    module = load_plugin_module()
+    first = normalized("AS123", "SFO", "2026-07-13T21:44:00-07:00", "ON", "ON TIME")
+    first.update(flight_number="123", codeshare_flight="", codeshare_number="")
+    second = normalized("UA456", "SFO", "2026-07-13T21:44:00-07:00", "ON", "ON TIME")
+    second.update(flight_number="456", codeshare_flight="", codeshare_number="")
+    assert module.Plugin(manifest())._deduplicate([first, second]) == [first, second]
+
+
 def test_fiestaboard_loader_accepts_standalone_repo(tmp_path):
     from src.plugins.loader import PluginLoader
 
@@ -164,6 +196,7 @@ def test_cancelled_departure_is_not_relevant():
 def airlabs_departure(flight, destination, dep_time, delayed=0):
     return {
         "flight_iata": flight,
+        "flight_number": flight[2:],
         "airline_iata": flight[:2],
         "dep_iata": "SEA",
         "dep_time": dep_time,

@@ -33,7 +33,8 @@ class AirLabsProvider(DepartureProvider):
             "limit": max(1, min(50, limit)),
             "_fields": (
                 "flight_iata,flight_number,airline_iata,dep_iata,dep_time,dep_estimated,"
-                "dep_actual,dep_terminal,dep_gate,arr_iata,status,dep_delayed"
+                "dep_actual,dep_terminal,dep_gate,arr_iata,status,dep_delayed,"
+                "cs_airline_iata,cs_flight_iata,cs_flight_number"
             ),
         }
         try:
@@ -61,6 +62,11 @@ class AirLabsProvider(DepartureProvider):
 def _normalize_airlabs(row: dict[str, Any]) -> dict[str, Any] | None:
     airline = str(row.get("airline_iata") or "").strip().upper()
     flight = str(row.get("flight_iata") or "").strip().upper()
+    codeshare_flight = str(row.get("cs_flight_iata") or "").strip().upper()
+    flight_number = str(row.get("flight_number") or flight[2:]).strip().upper()
+    codeshare_number = str(
+        row.get("cs_flight_number") or codeshare_flight[2:]
+    ).strip().upper()
     destination = str(row.get("arr_iata") or "").strip().upper()
     # Published IATA identifiers distinguish scheduled airline service from
     # private, positioning, and other general-aviation movements.
@@ -79,7 +85,10 @@ def _normalize_airlabs(row: dict[str, Any]) -> dict[str, Any] | None:
     status_code, status_label = _status(status, delayed)
     return {
         "flight": flight,
+        "flight_number": flight_number,
         "airline": airline,
+        "codeshare_flight": codeshare_flight,
+        "codeshare_number": codeshare_number,
         "destination": destination,
         "scheduled_time": scheduled,
         "estimated_time": estimated,

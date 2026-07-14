@@ -109,17 +109,29 @@ class AirportDeparturesPlugin(PluginBase):
 
     @staticmethod
     def _deduplicate(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        seen: set[tuple[str, str, str]] = set()
+        positions: dict[tuple[str, str, str], int] = {}
         unique: list[dict[str, Any]] = []
         for item in items:
+            service_number = str(
+                item.get("codeshare_number")
+                or item.get("flight_number")
+                or item.get("codeshare_flight")
+                or item.get("flight")
+            )
             key = (
-                str(item.get("flight", "")),
+                service_number,
                 str(item.get("destination", "")),
                 str(item.get("scheduled_time", "")),
             )
-            if key in seen:
+            if key in positions:
+                existing_index = positions[key]
+                existing = unique[existing_index]
+                # The row carrying a codeshare reference is normally the
+                # customer-facing marketing flight (for example AS over QX).
+                if item.get("codeshare_flight") and not existing.get("codeshare_flight"):
+                    unique[existing_index] = item
                 continue
-            seen.add(key)
+            positions[key] = len(unique)
             unique.append(item)
         return unique
 

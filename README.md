@@ -1,6 +1,6 @@
 # Airport Departures for FiestaBoard
 
-An installable FiestaBoard plugin for scheduled airline departure boards. Unlike nearby-aircraft plugins, it uses an airport schedule feed and exposes flight number, destination, time, delay, terminal, gate, and operational status. Rows without published airline and flight IATA identifiers are excluded.
+An installable FiestaBoard plugin for scheduled airline departure boards. Unlike nearby-aircraft plugins, it uses an airport schedule feed and exposes flight number, destination, time, delay, terminal, gate, and operational status. Rows without published airline and flight IATA identifiers are excluded, and codeshare listings for the same physical departure are combined.
 
 ## Data Provider
 
