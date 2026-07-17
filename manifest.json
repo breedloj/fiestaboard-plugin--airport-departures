@@ -4,6 +4,7 @@
   "version": "1.2.0",
   "description": "Scheduled airline departure times, destinations, delays, gates, and statuses.",
   "author": "Jonathan Breedlove",
+  "repository": "https://github.com/breedloj/fiestaboard-plugin--airport-departures",
   "icon": "plane-takeoff",
   "category": "transit",
   "documentation": "README.md",
@@ -101,16 +102,31 @@
   "max_lengths": {
     "departures.*.flight": 7,
     "departures.*.flight_number": 5,
+    "departures.*.airline": 3,
     "departures.*.codeshare_flight": 7,
     "departures.*.destination": 3,
     "departures.*.display_time": 8,
     "departures.*.compact_time": 4,
+    "departures.*.scheduled_time": 32,
+    "departures.*.estimated_time": 32,
+    "departures.*.minutes_until_departure": 4,
     "departures.*.status_code": 5,
     "departures.*.status_label": 15,
+    "departures.*.status": 12,
+    "departures.*.delay_minutes": 4,
+    "departures.*.status_color": 4,
     "departures.*.terminal": 5,
     "departures.*.gate": 6
   },
   "fiestaboard_version": ">=2.10.0",
+  "screenshots": [
+    {
+      "src": "docs/board-display.png",
+      "alt": "Airport Departures displaying the next scheduled airline flight on a Vestaboard Note",
+      "caption": "Note-ready airport departure with flight, destination, and local time",
+      "primary": true
+    }
+  ],
   "demo": {
     "flagship": {
       "name": "Airport Departures",

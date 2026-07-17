@@ -1,5 +1,7 @@
 # Airport Departures Setup
 
+![Airport Departures on a Vestaboard Note](./board-display.png)
+
 1. Create an AirLabs account and API key at <https://airlabs.co>.
 2. Install this plugin from its public GitHub HTTPS URL.
 3. Open **Integrations** and enable **Airport Departures**.
@@ -39,3 +41,22 @@ AND(airport_departures.departure_count > 0, airport_departures.minutes_until_dep
 ## API Limits
 
 AirLabs controls request allowances. FiestaBoard caches this plugin according to the configured refresh interval. At the default 3,600 seconds, the theoretical maximum is 24 requests per day.
+
+## Troubleshooting
+
+### No departures appear
+
+- Confirm the airport uses scheduled airline service and the IATA code is correct.
+- Set **Keep Recent Departures** to `0` when you only want future departures.
+- AirLabs generally exposes a limited look-ahead window, so a quiet airport may legitimately have no returned flights yet.
+- Private, positioning, and other rows without published airline identifiers are intentionally excluded.
+
+### The same physical flight has multiple numbers
+
+AirLabs may return marketing, operating, and partner codeshares separately. The plugin groups records sharing the same operating service, destination, and scheduled time, then prefers the primary marketing listing.
+
+### AirLabs returns an error
+
+- Re-enter the API key in **Integrations**.
+- Confirm the key's request allowance has not been exhausted.
+- Increase the refresh interval before retrying if the provider reports a rate limit.

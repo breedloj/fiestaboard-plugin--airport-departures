@@ -2,24 +2,31 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 from zoneinfo import ZoneInfo
 
+import pytest
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def load_plugin_module():
+    module_name = "airport_departures_external"
+    sys.modules.pop(module_name, None)
+    sys.modules.pop(f"{module_name}.provider", None)
     spec = importlib.util.spec_from_file_location(
-        "airport_departures_external",
+        module_name,
         ROOT / "__init__.py",
         submodule_search_locations=[str(ROOT)],
     )
     module = importlib.util.module_from_spec(spec)
     assert spec and spec.loader
+    sys.modules[module_name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -127,6 +134,40 @@ def test_airlabs_http_error_does_not_expose_api_key():
             assert "very-secret" not in str(exc)
         else:
             raise AssertionError("Expected ProviderError")
+
+
+def test_airlabs_rejects_invalid_json_and_error_payloads():
+    provider = load_provider_module()
+    invalid_json = response({})
+    invalid_json.json.side_effect = ValueError("not JSON")
+    with patch.object(provider.requests, "get", return_value=invalid_json):
+        with pytest.raises(provider.ProviderError, match="invalid JSON"):
+            provider.AirLabsProvider("secret").fetch_departures("SEA", 10)
+
+    api_error = response({"error": {"message": "request limit reached"}})
+    with patch.object(provider.requests, "get", return_value=api_error):
+        with pytest.raises(provider.ProviderError, match="request limit reached"):
+            provider.AirLabsProvider("secret").fetch_departures("SEA", 10)
+
+    unexpected = response({"response": "not-a-list"})
+    with patch.object(provider.requests, "get", return_value=unexpected):
+        with pytest.raises(provider.ProviderError, match="unexpected response"):
+            provider.AirLabsProvider("secret").fetch_departures("SEA", 10)
+
+
+@pytest.mark.parametrize(
+    ("status", "delayed", "code", "label", "color"),
+    [
+        ("cancelled", 0, "CNCL", "CANCELLED", "{63}"),
+        ("departed", 0, "DEPT", "DEPARTED", "{67}"),
+        ("boarding", 0, "BRD", "BOARDING", "{66}"),
+        ("delayed", 25, "DLY", "DELAY 25M", "{64}"),
+    ],
+)
+def test_provider_status_mapping(status, delayed, code, label, color):
+    provider = load_provider_module()
+    assert provider._status(status, delayed) == (code, label)
+    assert provider._status_color(status, delayed) == color
 
 
 def test_delayed_departure_keeps_updated_time_on_note():
