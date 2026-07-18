@@ -1,8 +1,8 @@
 {
   "id": "airport_departures",
   "name": "Airport Departures",
-  "version": "1.2.0",
-  "description": "Scheduled airline departure times, destinations, delays, gates, and statuses.",
+  "version": "1.3.0",
+  "description": "Scheduled airline departure and arrival times, airports, delays, gates, and statuses.",
   "author": "Jonathan Breedlove",
   "repository": "https://github.com/breedloj/fiestaboard-plugin--airport-departures",
   "icon": "plane-takeoff",
@@ -18,9 +18,16 @@
         "description": "Create a key at airlabs.co.",
         "ui:widget": "password"
       },
+      "board_type": {
+        "type": "string",
+        "title": "Board Type",
+        "description": "Choose whether this board displays departures or arrivals.",
+        "enum": ["departures", "arrivals"],
+        "default": "departures"
+      },
       "airport_iata": {
         "type": "string",
-        "title": "Departure Airport",
+        "title": "Airport",
         "description": "Three-letter IATA code, such as SEA.",
         "default": "SEA",
         "minLength": 3,
@@ -29,21 +36,21 @@
       "timezone": {
         "type": "string",
         "title": "Airport Timezone",
-        "description": "IANA timezone used to decide which departures are still relevant.",
+        "description": "IANA timezone used to decide which flights are still relevant.",
         "default": "America/Los_Angeles"
       },
       "max_departures": {
         "type": "integer",
-        "title": "Maximum Departures",
-        "description": "The Note default shows the first two; templates may use the rest.",
+        "title": "Maximum Flights",
+        "description": "The Note default shows the first two; templates may use the rest. Existing departure settings remain compatible.",
         "default": 2,
         "minimum": 1,
         "maximum": 10
       },
       "recent_departure_minutes": {
         "type": "integer",
-        "title": "Keep Recent Departures (minutes)",
-        "description": "Retain recently delayed or departed flights briefly.",
+        "title": "Keep Recent Flights (minutes)",
+        "description": "Retain recently departed or arrived flights briefly. Existing departure settings remain compatible.",
         "default": 45,
         "minimum": 0,
         "maximum": 180
@@ -68,34 +75,43 @@
   ],
   "variables": {
     "groups": {
-      "primary": {"label": "Next Departure"},
+      "primary": {"label": "Next Flight"},
       "display": {"label": "Ready-to-Display"}
     },
     "simple": {
-      "airport": {"description": "Configured departure airport", "type": "string", "max_length": 3, "group": "primary", "example": "SEA"},
+      "board_type": {"description": "Configured board type: departures or arrivals", "type": "string", "max_length": 10, "group": "primary", "example": "arrivals"},
+      "airport": {"description": "Configured airport", "type": "string", "max_length": 3, "group": "primary", "example": "SEA"},
       "flight": {"description": "Flight number", "type": "string", "max_length": 7, "group": "primary", "example": "AS123"},
+      "origin": {"description": "Origin IATA code", "type": "string", "max_length": 3, "group": "primary", "example": "SFO"},
       "destination": {"description": "Destination IATA code", "type": "string", "max_length": 3, "group": "primary", "example": "LAX"},
-      "display_time": {"description": "Best known departure time", "type": "string", "max_length": 8, "group": "primary", "example": "7:30 PM"},
-      "compact_time": {"description": "Best known departure time in compact 24-hour form", "type": "string", "max_length": 4, "group": "primary", "example": "1930"},
+      "display_time": {"description": "Best known departure or arrival time", "type": "string", "max_length": 8, "group": "primary", "example": "7:30 PM"},
+      "compact_time": {"description": "Best known time in compact 24-hour form", "type": "string", "max_length": 4, "group": "primary", "example": "1930"},
       "status_label": {"description": "Human-readable flight status", "type": "string", "max_length": 15, "group": "primary", "example": "ON TIME"},
       "status_code": {"description": "Compact status", "type": "string", "max_length": 5, "group": "primary", "example": "DLY"},
       "status_color": {"description": "Status color tile", "type": "string", "max_length": 4, "group": "primary", "example": "{64}"},
-      "is_delayed": {"description": "Whether the next departure is delayed", "type": "boolean", "max_length": 3, "group": "primary", "example": "Yes"},
-      "terminal": {"description": "Departure terminal", "type": "string", "max_length": 5, "group": "primary", "example": "N"},
-      "gate": {"description": "Departure gate", "type": "string", "max_length": 6, "group": "primary", "example": "N12"},
-      "delay_minutes": {"description": "Departure delay in minutes", "type": "number", "max_length": 4, "group": "primary", "example": "15"},
+      "is_delayed": {"description": "Whether the next flight is delayed", "type": "boolean", "max_length": 3, "group": "primary", "example": "Yes"},
+      "terminal": {"description": "Flight terminal", "type": "string", "max_length": 5, "group": "primary", "example": "N"},
+      "gate": {"description": "Flight gate", "type": "string", "max_length": 6, "group": "primary", "example": "N12"},
+      "baggage": {"description": "Arrival baggage carousel when available", "type": "string", "max_length": 8, "group": "primary", "example": "5"},
+      "delay_minutes": {"description": "Flight delay in minutes", "type": "number", "max_length": 4, "group": "primary", "example": "15"},
       "departure_count": {"description": "Relevant departures returned", "type": "number", "max_length": 2, "group": "primary", "example": "5"},
+      "arrival_count": {"description": "Relevant arrivals returned", "type": "number", "max_length": 2, "group": "primary", "example": "5"},
       "has_delays": {"description": "Whether any returned flight is delayed", "type": "boolean", "max_length": 3, "group": "primary", "example": "Yes"},
       "minutes_until_departure": {"description": "Whole minutes until the next departure, or -1 when unavailable", "type": "number", "max_length": 4, "group": "primary", "example": "90"},
+      "minutes_until_arrival": {"description": "Whole minutes until the next arrival, or -1 when unavailable", "type": "number", "max_length": 4, "group": "primary", "example": "90"},
       "line1": {"description": "Note-ready airport header", "type": "string", "max_length": 15, "group": "display", "example": "SEA DEPARTURES"},
-      "line2": {"description": "First Note-ready departure", "type": "string", "max_length": 15, "group": "display", "example": "AS123 LAX 7:30"},
-      "line3": {"description": "Second departure or primary details", "type": "string", "max_length": 15, "group": "display", "example": "DL456 SFO DLY"},
-      "formatted": {"description": "Compact primary departure", "type": "string", "max_length": 22, "group": "display", "example": "AS123 LAX 7:30 PM"}
+      "line2": {"description": "First Note-ready flight", "type": "string", "max_length": 15, "group": "display", "example": "AS123 LAX 7:30"},
+      "line3": {"description": "Second Note-ready flight", "type": "string", "max_length": 15, "group": "display", "example": "DL456 SFO DLY"},
+      "formatted": {"description": "Compact primary flight", "type": "string", "max_length": 22, "group": "display", "example": "AS123 LAX 7:30 PM"}
     },
     "arrays": {
       "departures": {
         "label_field": "flight",
-        "item_fields": ["flight", "flight_number", "airline", "codeshare_flight", "destination", "display_time", "compact_time", "scheduled_time", "estimated_time", "minutes_until_departure", "terminal", "gate", "status", "status_code", "status_label", "delay_minutes", "status_color"]
+        "item_fields": ["flight", "flight_number", "airline", "codeshare_flight", "origin", "destination", "display_time", "compact_time", "scheduled_time", "estimated_time", "minutes_until_departure", "terminal", "gate", "status", "status_code", "status_label", "delay_minutes", "status_color"]
+      },
+      "arrivals": {
+        "label_field": "flight",
+        "item_fields": ["flight", "flight_number", "airline", "codeshare_flight", "origin", "destination", "display_time", "compact_time", "scheduled_time", "estimated_time", "minutes_until_arrival", "terminal", "gate", "baggage", "status", "status_code", "status_label", "delay_minutes", "status_color"]
       }
     }
   },
@@ -104,6 +120,7 @@
     "departures.*.flight_number": 5,
     "departures.*.airline": 3,
     "departures.*.codeshare_flight": 7,
+    "departures.*.origin": 3,
     "departures.*.destination": 3,
     "departures.*.display_time": 8,
     "departures.*.compact_time": 4,
@@ -116,7 +133,26 @@
     "departures.*.delay_minutes": 4,
     "departures.*.status_color": 4,
     "departures.*.terminal": 5,
-    "departures.*.gate": 6
+    "departures.*.gate": 6,
+    "arrivals.*.flight": 7,
+    "arrivals.*.flight_number": 5,
+    "arrivals.*.airline": 3,
+    "arrivals.*.codeshare_flight": 7,
+    "arrivals.*.origin": 3,
+    "arrivals.*.destination": 3,
+    "arrivals.*.display_time": 8,
+    "arrivals.*.compact_time": 4,
+    "arrivals.*.scheduled_time": 32,
+    "arrivals.*.estimated_time": 32,
+    "arrivals.*.minutes_until_arrival": 4,
+    "arrivals.*.status_code": 5,
+    "arrivals.*.status_label": 15,
+    "arrivals.*.status": 12,
+    "arrivals.*.delay_minutes": 4,
+    "arrivals.*.status_color": 4,
+    "arrivals.*.terminal": 5,
+    "arrivals.*.gate": 6,
+    "arrivals.*.baggage": 8
   },
   "fiestaboard_version": ">=2.10.0",
   "screenshots": [
