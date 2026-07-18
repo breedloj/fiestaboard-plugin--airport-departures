@@ -62,6 +62,50 @@ def test_airlabs_normalization():
     assert rows[0]["compact_time"] == "1930"
 
 
+def test_airlabs_arrival_query_and_normalization():
+    provider = load_provider_module()
+    payload = {
+        "response": [
+            airlabs_arrival(
+                "AS2248",
+                "SFO",
+                "2026-07-13 21:44",
+                estimated="2026-07-13 21:50",
+                status="active",
+            )
+        ]
+    }
+    with patch.object(provider.requests, "get", return_value=response(payload)) as request:
+        rows = provider.AirLabsProvider("secret").fetch_arrivals("PAE", 10)
+
+    params = request.call_args.kwargs["params"]
+    assert params["arr_iata"] == "PAE"
+    assert "dep_iata" not in params
+    assert rows[0]["board_type"] == "arrivals"
+    assert rows[0]["origin"] == "SFO"
+    assert rows[0]["destination"] == "PAE"
+    assert rows[0]["counterpart_airport"] == "SFO"
+    assert rows[0]["compact_time"] == "2150"
+    assert rows[0]["terminal"] == "A"
+    assert rows[0]["gate"] == "A2"
+    assert rows[0]["baggage"] == "5"
+    assert rows[0]["status_code"] == "ENR"
+    assert rows[0]["status_label"] == "EN ROUTE"
+
+
+def test_existing_provider_subclasses_remain_valid():
+    provider = load_provider_module()
+
+    class ExistingProvider(provider.DepartureProvider):
+        def fetch_departures(self, airport, limit):
+            return []
+
+    adapter = ExistingProvider()
+    assert adapter.fetch_departures("SEA", 2) == []
+    with pytest.raises(provider.ProviderError, match="does not support arrival"):
+        adapter.fetch_arrivals("SEA", 2)
+
+
 def test_airlabs_excludes_non_airline_movements():
     provider = load_provider_module()
     airline = airlabs_departure("AS123", "LAX", "2026-07-13 19:30")
@@ -170,6 +214,27 @@ def test_provider_status_mapping(status, delayed, code, label, color):
     assert provider._status_color(status, delayed) == color
 
 
+def test_departure_status_colors_retain_legacy_defaults():
+    provider = load_provider_module()
+    assert provider._status_color("diverted", 0) == "{66}"
+    assert provider._status_color("incident", 0) == "{66}"
+
+
+@pytest.mark.parametrize(
+    ("status", "code", "label", "color"),
+    [
+        ("landed", "ARR", "ARRIVED", "{67}"),
+        ("active", "ENR", "EN ROUTE", "{67}"),
+        ("diverted", "DIV", "DIVERTED", "{65}"),
+        ("incident", "INFO", "SEE AGENT", "{63}"),
+    ],
+)
+def test_arrival_status_mapping(status, code, label, color):
+    provider = load_provider_module()
+    assert provider._status(status, 0, "arrivals") == (code, label)
+    assert provider._status_color(status, 0, "arrivals") == color
+
+
 def test_delayed_departure_keeps_updated_time_on_note():
     module = load_plugin_module()
     plugin = module.Plugin(manifest())
@@ -198,8 +263,76 @@ def test_delayed_departure_keeps_updated_time_on_note():
     assert result.data["line3"] == "DL456 SFO 1930"
     assert result.data["minutes_until_departure"] == 30
     assert result.data["departures"][1]["minutes_until_departure"] == 60
+    assert result.data["board_type"] == "departures"
+    assert result.data["arrival_count"] == 0
+    assert result.data["arrivals"] == []
+    assert result.data["minutes_until_arrival"] == -1
     assert result.data["has_delays"]
     assert all(len(line) <= 15 for line in result.formatted_lines[:3])
+    provider.fetch_departures.assert_called_once_with("SEA", limit=50)
+    provider.fetch_arrivals.assert_not_called()
+
+
+def test_arrivals_use_origins_and_arrival_variables_on_note():
+    module = load_plugin_module()
+    plugin = module.Plugin(manifest())
+    plugin.config = {
+        "api_key": "secret",
+        "board_type": "arrivals",
+        "airport_iata": "PAE",
+        "timezone": "America/Los_Angeles",
+        "max_departures": 2,
+        "recent_departure_minutes": 0,
+    }
+    rows = [
+        normalized_arrival("AS2248", "SFO", "2026-07-13T21:44:00-07:00"),
+        normalized_arrival("AS2055", "LAX", "2026-07-13T22:30:00-07:00"),
+    ]
+    provider = Mock()
+    provider.fetch_arrivals.return_value = rows
+    with plugin._bound_board(SimpleNamespace(device_type="note")):
+        with patch.object(plugin, "_provider", return_value=provider), patch.object(
+            plugin,
+            "_now",
+            return_value=datetime(2026, 7, 13, 20, 44, tzinfo=ZoneInfo("America/Los_Angeles")),
+        ):
+            result = plugin.fetch_data()
+
+    assert result.available
+    assert result.data["board_type"] == "arrivals"
+    assert result.data["line1"] == "PAE ARRIVALS"
+    assert result.data["line2"] == "AS2248 SFO 2144"
+    assert result.data["line3"] == "AS2055 LAX 2230"
+    assert result.data["origin"] == "SFO"
+    assert result.data["arrival_count"] == 2
+    assert result.data["departure_count"] == 0
+    assert result.data["departures"] == []
+    assert result.data["minutes_until_departure"] == -1
+    assert result.data["minutes_until_arrival"] == 60
+    assert result.data["arrivals"][1]["minutes_until_arrival"] == 106
+    provider.fetch_arrivals.assert_called_once_with("PAE", limit=50)
+    provider.fetch_departures.assert_not_called()
+
+
+def test_empty_arrival_board_is_available_and_direction_aware():
+    module = load_plugin_module()
+    plugin = module.Plugin(manifest())
+    plugin.config = {
+        "api_key": "secret",
+        "board_type": "arrivals",
+        "airport_iata": "PAE",
+        "timezone": "UTC",
+    }
+    provider = Mock()
+    provider.fetch_arrivals.return_value = []
+    with patch.object(plugin, "_provider", return_value=provider):
+        result = plugin.fetch_data()
+
+    assert result.available
+    assert result.data["line1"] == "PAE ARRIVALS"
+    assert result.data["line2"] == "NO ARRIVALS"
+    assert result.data["arrival_count"] == 0
+    assert result.data["arrivals"] == []
 
 
 def test_single_departure_leaves_second_slot_empty():
@@ -230,13 +363,43 @@ def test_validation_requires_key_and_iata():
     assert len(errors) == 2
 
 
+def test_validation_rejects_unknown_board_type():
+    module = load_plugin_module()
+    plugin = module.Plugin(manifest())
+    errors = plugin.validate_config(
+        {
+            "api_key": "secret",
+            "airport_iata": "SEA",
+            "timezone": "UTC",
+            "board_type": "both",
+        }
+    )
+    assert errors == ["Board type must be departures or arrivals"]
+
+
 def test_manifest_allows_environment_api_key():
     assert "api_key" not in manifest()["settings_schema"]["required"]
+
+
+def test_manifest_defaults_existing_installations_to_departures():
+    plugin_manifest = manifest()
+    assert plugin_manifest["version"] == "1.3.0"
+    assert plugin_manifest["settings_schema"]["properties"]["board_type"]["default"] == "departures"
+    assert "departures" in plugin_manifest["variables"]["arrays"]
+    assert "arrivals" in plugin_manifest["variables"]["arrays"]
+
+
+def test_null_board_type_is_treated_as_legacy_departures():
+    module = load_plugin_module()
+    plugin = module.Plugin(manifest())
+    plugin.config = {"board_type": None}
+    assert plugin._board_type() == "departures"
 
 
 def test_missing_departure_time_uses_unavailable_sentinel():
     module = load_plugin_module()
     assert module._minutes_until_departure({}, datetime(2026, 7, 13, tzinfo=ZoneInfo("UTC"))) == -1
+    assert module._minutes_until_arrival({}, datetime(2026, 7, 13, tzinfo=ZoneInfo("UTC"))) == -1
 
 
 def test_cancelled_departure_is_not_relevant():
@@ -260,6 +423,23 @@ def airlabs_departure(flight, destination, dep_time, delayed=0):
     }
 
 
+def airlabs_arrival(flight, origin, arr_time, estimated="", status="scheduled", delayed=0):
+    return {
+        "flight_iata": flight,
+        "flight_number": flight[2:],
+        "airline_iata": flight[:2],
+        "dep_iata": origin,
+        "arr_iata": "PAE",
+        "arr_time": arr_time,
+        "arr_estimated": estimated,
+        "arr_terminal": "A",
+        "arr_gate": "A2",
+        "arr_baggage": "5",
+        "status": status,
+        "arr_delayed": delayed,
+    }
+
+
 def normalized(flight, destination, sort_time, status_code, status_label, delayed=False):
     return {
         "flight": flight,
@@ -279,4 +459,13 @@ def normalized(flight, destination, sort_time, status_code, status_label, delaye
         "delay_minutes": 25 if delayed else 0,
         "is_delayed": delayed,
         "status_color": "{64}" if delayed else "{66}",
+    }
+
+
+def normalized_arrival(flight, origin, sort_time):
+    return {
+        **normalized(flight, "PAE", sort_time, "ON", "ON TIME"),
+        "origin": origin,
+        "baggage": "5",
+        "compact_time": datetime.fromisoformat(sort_time).strftime("%H%M"),
     }
